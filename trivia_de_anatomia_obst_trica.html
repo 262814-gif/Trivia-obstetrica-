@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia de Anatomía Obstétrica</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+        
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.92);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(236, 72, 153, 0.4);
+            box-shadow: 0 10px 40px rgba(236, 72, 153, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .custom-glow {
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.35);
+        }
+
+        /* Puzzle Grid Styling */
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px;
+            background: #090d16;
+            border-radius: 16px;
+            padding: 8px;
+            border: 2px solid #ec4899;
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.3), inset 0 0 15px rgba(0,0,0,0.9);
+        }
+
+        .puzzle-piece {
+            aspect-ratio: 1;
+            position: relative;
+            background-color: #1e293b;
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.4s ease-in-out;
+        }
+
+        .puzzle-piece.locked {
+            opacity: 0.15;
+            filter: grayscale(100%) brightness(0.2);
+            background-color: #0f172a;
+        }
+
+        .puzzle-piece.unlocked {
+            opacity: 1;
+            filter: grayscale(0%) brightness(1.1);
+            border: 2px solid #38bdf8;
+            box-shadow: 0 0 15px #38bdf8, 0 0 30px rgba(236, 72, 153, 0.6);
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .puzzle-piece-inner {
+            width: 500%;
+            height: 400%;
+            position: absolute;
+        }
+
+        .avatar-bounce {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(1deg); }
+        }
+
+        /* Fire Animation for Streaks */
+        @keyframes fireGlow {
+            0% { box-shadow: 0 0 10px #f97316; }
+            50% { box-shadow: 0 0 25px #ef4444, 0 0 40px #eab308; }
+            100% { box-shadow: 0 0 10px #f97316; }
+        }
+
+        .streak-fire {
+            animation: fireGlow 1s ease-in-out infinite;
+        }
+
+        /* Canvas Overlay for Confetti */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(to bottom, #ec4899, #a855f7);
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between p-2 sm:p-4 md:p-6 text-slate-100">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- HEADER BAR -->
+    <header class="max-w-7xl w-full mx-auto glass-panel rounded-2xl p-4 mb-4 flex flex-wrap justify-between items-center gap-4 border-2 border-pink-500/50">
+        <div class="flex items-center space-x-3">
+            <div class="p-3 bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 rounded-xl shadow-lg shadow-pink-500/40">
+                <i class="fa-solid fa-baby text-3xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black bg-gradient-to-r from-pink-400 via-purple-300 to-cyan-400 bg-clip-text text-transparent drop-shadow-md">
+                    AnatoObs Trivia Pro
+                </h1>
+                <p class="text-xs text-pink-300 font-bold uppercase tracking-wider">Anatomía Obstétrica Interactiva & Rompecabezas</p>
+            </div>
+        </div>
+
+        <!-- Controls, Score, Streaks and Level Badges -->
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+            <!-- Audio Toggle -->
+            <button id="sound-btn" onclick="toggleSound()" class="bg-slate-900 px-3.5 py-2.5 rounded-xl border-2 border-pink-500 hover:bg-slate-800 text-pink-400 transition-all flex items-center gap-2 shadow-lg">
+                <i id="sound-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+
+            <!-- Streak Counter -->
+            <div id="streak-badge" class="bg-slate-900 px-4 py-2.5 rounded-xl border-2 border-amber-500 flex items-center gap-2 shadow-lg transition-all hidden">
+                <i class="fa-solid fa-fire text-amber-400 text-lg animate-bounce"></i>
+                <span class="font-bold text-slate-200">Racha: <strong id="streak-display" class="text-amber-400 text-lg font-black">0</strong></span>
+            </div>
+
+            <!-- Score -->
+            <div class="bg-slate-900 px-4 py-2.5 rounded-xl border-2 border-amber-400 flex items-center gap-2 shadow-lg shadow-amber-500/20">
+                <i class="fa-solid fa-trophy text-amber-400 text-lg"></i>
+                <span class="font-bold text-slate-200">Puntos: <strong id="score-display" class="text-amber-400 text-lg font-black">0</strong></span>
+            </div>
+
+            <!-- Level Badge -->
+            <div class="bg-slate-900 px-4 py-2.5 rounded-xl border-2 border-cyan-400 flex items-center gap-2 shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-layer-group text-cyan-400 text-lg"></i>
+                <span class="font-bold text-slate-200">Nivel: <strong id="current-level-badge" class="text-cyan-300 text-lg font-black">Principiante</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl w-full mx-auto flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- LEFT COLUMN: CHARACTER, QUIZ & POWER-UPS (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+
+            <!-- CHARACTER HOST PANEL -->
+            <div class="glass-panel rounded-2xl p-5 relative overflow-hidden flex items-start gap-4 custom-glow border-2 border-purple-500/40">
+                <div class="relative flex-shrink-0">
+                    <div id="character-avatar" class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-b from-purple-900 via-slate-900 to-pink-950 border-3 border-pink-400 p-2 shadow-xl shadow-pink-500/30 flex items-center justify-center avatar-bounce">
+                        <svg id="character-svg" viewBox="0 0 100 100" class="w-full h-full">
+                            <!-- Injected by JavaScript -->
+                        </svg>
+                    </div>
+                    <span id="character-status-dot" class="absolute bottom-0 right-0 w-5 h-5 bg-emerald-400 border-2 border-slate-900 rounded-full shadow-lg shadow-emerald-400/50"></span>
+                </div>
+
+                <!-- Speech Dialogue -->
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-black uppercase tracking-wider text-pink-300 flex items-center gap-1.5 bg-pink-950/80 px-2.5 py-1 rounded-md border border-pink-500/40">
+                            <i class="fa-solid fa-user-doctor text-pink-400"></i> Dra. Sofía - Tu Guía
+                        </span>
+                        <span id="question-progress-text" class="text-xs font-black text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded-md border border-cyan-500/40">Pregunta 1/20</span>
+                    </div>
+                    <div class="bg-slate-950 border-2 border-pink-500/40 rounded-2xl p-4 relative text-sm sm:text-base leading-relaxed text-slate-100 shadow-inner min-h-[75px] flex items-center">
+                        <p id="character-dialogue" class="font-medium text-pink-100">¡Hola! Soy la Dra. Sofía. Selecciona un nivel y cada respuesta acertada revelará una pieza brillante del rompecabezas anatómico.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEVEL SELECTOR SCREEN -->
+            <div id="level-selection-screen" class="glass-panel rounded-2xl p-6 text-center space-y-6">
+                <div class="max-w-md mx-auto space-y-2">
+                    <h2 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300">Selecciona tu Nivel de Desafío</h2>
+                    <p class="text-sm font-semibold text-slate-300">Responde correctamente las 20 preguntas de cada nivel para completar el rompecabezas del atlas anatómico.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <!-- Beginner Button -->
+                    <button onclick="startGame('beginner')" class="p-5 rounded-2xl bg-gradient-to-b from-slate-800 to-emerald-950/80 hover:to-emerald-900 border-3 border-emerald-500 hover:border-emerald-300 transition-all text-left group shadow-lg shadow-emerald-950/50 hover:scale-105">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center text-2xl font-black mb-3 shadow-md shadow-emerald-500/40 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-seedling"></i>
+                        </div>
+                        <h3 class="font-black text-emerald-300 text-xl">Principiante</h3>
+                        <p class="text-xs font-medium text-slate-300 mt-1.5">Estructuras básicas, pelvis, útero y terminología elemental.</p>
+                        <span class="inline-block mt-3 text-xs font-black text-emerald-950 bg-emerald-400 px-3 py-1 rounded-full shadow-md">20 Preguntas</span>
+                    </button>
+
+                    <!-- Intermediate Button -->
+                    <button onclick="startGame('intermediate')" class="p-5 rounded-2xl bg-gradient-to-b from-slate-800 to-amber-950/80 hover:to-amber-900 border-3 border-amber-500 hover:border-amber-300 transition-all text-left group shadow-lg shadow-amber-950/50 hover:scale-105">
+                        <div class="w-12 h-12 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center text-2xl font-black mb-3 shadow-md shadow-amber-400/40 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-stethoscope"></i>
+                        </div>
+                        <h3 class="font-black text-amber-300 text-xl">Intermedio</h3>
+                        <p class="text-xs font-medium text-slate-300 mt-1.5">Planos de Hodge, vascularización, placenta y diámetros pélvicos.</p>
+                        <span class="inline-block mt-3 text-xs font-black text-amber-950 bg-amber-400 px-3 py-1 rounded-full shadow-md">20 Preguntas</span>
+                    </button>
+
+                    <!-- Difficult Button -->
+                    <button onclick="startGame('difficult')" class="p-5 rounded-2xl bg-gradient-to-b from-slate-800 to-rose-950/80 hover:to-rose-900 border-3 border-rose-500 hover:border-rose-300 transition-all text-left group shadow-lg shadow-rose-950/50 hover:scale-105">
+                        <div class="w-12 h-12 rounded-xl bg-rose-500 text-white flex items-center justify-center text-2xl font-black mb-3 shadow-md shadow-rose-500/40 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-brain"></i>
+                        </div>
+                        <h3 class="font-black text-rose-300 text-xl">Avanzado</h3>
+                        <p class="text-xs font-medium text-slate-300 mt-1.5">Inervación del piso pélvico, anomalías anatómicas y variantes clínicas.</p>
+                        <span class="inline-block mt-3 text-xs font-black text-rose-950 bg-rose-400 px-3 py-1 rounded-full shadow-md">20 Preguntas</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- QUESTION CARD -->
+            <div id="quiz-card" class="glass-panel rounded-2xl p-6 hidden flex-col justify-between space-y-5 border-2 border-pink-500/50 relative">
+                
+                <!-- Progress & Timer Bar Container -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-300">
+                        <span>Progreso del Nivel</span>
+                        <span id="timer-text" class="text-amber-400 font-extrabold flex items-center gap-1">
+                            <i class="fa-solid fa-clock"></i> 20s
+                        </span>
+                    </div>
+                    <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-700 p-0.5">
+                        <div id="level-progress-bar" class="bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 h-full w-0 rounded-full transition-all duration-300"></div>
+                    </div>
+                    <!-- Countdown Bar -->
+                    <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                        <div id="timer-bar" class="bg-amber-400 h-full w-full transition-all duration-100 ease-linear"></div>
+                    </div>
+                </div>
+
+                <!-- Category & Power-Ups Row -->
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span id="question-category" class="text-xs font-black uppercase tracking-wider text-pink-300 bg-pink-950 px-3.5 py-1.5 rounded-full border-2 border-pink-500/60 shadow-md">
+                        Anatomía Pélvica
+                    </span>
+
+                    <!-- POWER-UPS / COMODINES -->
+                    <div class="flex items-center gap-2">
+                        <button id="powerup-5050" onclick="usePowerup5050()" class="text-xs font-black px-3 py-1.5 rounded-xl bg-purple-950 border border-purple-500 text-purple-200 hover:bg-purple-800 transition-all flex items-center gap-1 shadow-md">
+                            <i class="fa-solid fa-boxes-packing text-pink-400"></i> 50:50 <span id="count-5050" class="bg-purple-800 text-white px-1.5 py-0.5 rounded-md text-[10px]">1</span>
+                        </button>
+                        <button id="powerup-hint" onclick="usePowerupHint()" class="text-xs font-black px-3 py-1.5 rounded-xl bg-amber-950 border border-amber-500 text-amber-200 hover:bg-amber-800 transition-all flex items-center gap-1 shadow-md">
+                            <i class="fa-solid fa-lightbulb text-amber-400"></i> Pista <span id="count-hint" class="bg-amber-800 text-white px-1.5 py-0.5 rounded-md text-[10px]">1</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Question Text -->
+                <div>
+                    <h3 id="question-text" class="text-xl sm:text-2xl font-black text-white mt-1 leading-snug drop-shadow-md">
+                        ¿Cargando pregunta...?
+                    </h3>
+                </div>
+
+                <!-- Options Grid -->
+                <div id="options-container" class="grid grid-cols-1 gap-3">
+                    <!-- Options buttons dynamically injected by JS -->
+                </div>
+
+                <!-- Footer Navigation -->
+                <div class="flex justify-between items-center pt-3 border-t-2 border-slate-800">
+                    <button onclick="showLevelSelect()" class="text-xs font-extrabold text-pink-300 hover:text-white flex items-center gap-1.5 transition-colors bg-slate-900 px-3 py-2 rounded-xl border border-pink-500/30">
+                        <i class="fa-solid fa-arrow-left"></i> Cambiar Nivel
+                    </button>
+                    <button id="next-btn" onclick="nextQuestion()" class="hidden px-6 py-3 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-black text-base shadow-xl shadow-pink-500/40 transition-all flex items-center gap-2 border border-pink-300/50">
+                        <span>Siguiente Pregunta</span>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- RESULTS SCREEN -->
+            <div id="results-screen" class="glass-panel rounded-2xl p-6 hidden text-center space-y-6">
+                <div class="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-pink-500 via-purple-500 to-amber-400 flex items-center justify-center text-3xl text-white shadow-2xl shadow-pink-500/50 border-4 border-white">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <div>
+                    <h2 class="text-3xl font-black text-white">¡Nivel Completado!</h2>
+                    <p id="result-summary" class="text-slate-200 mt-2 text-base font-semibold">Has respondido a las 20 preguntas del nivel.</p>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 bg-slate-950 p-4 rounded-2xl border-2 border-pink-500/40 max-w-md mx-auto shadow-inner">
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Aciertos</p>
+                        <p id="results-correct" class="text-2xl font-black text-emerald-400">0</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Errores</p>
+                        <p id="results-incorrect" class="text-2xl font-black text-rose-400">0</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase">Precisión</p>
+                        <p id="results-accuracy" class="text-2xl font-black text-cyan-400">0%</p>
+                    </div>
+                </div>
+
+                <!-- Unlocked Achievements Badges Container -->
+                <div id="achievements-container" class="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+                    <!-- Dynamic badges injected here -->
+                </div>
+
+                <!-- Action to show full revealed puzzle in results -->
+                <div class="p-4 bg-slate-900/90 border border-pink-500/30 rounded-2xl max-w-md mx-auto space-y-3">
+                    <p class="text-xs text-slate-300 font-semibold">¡Tus aciertos han desvelado las piezas de la ilustración anatómica completa!</p>
+                    <button onclick="revealAllPuzzlePieces()" class="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-eye"></i> Revelar Rompecabezas al 100%
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-4">
+                    <button onclick="showLevelSelect()" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border-2 border-slate-600 transition-all">
+                        Elegir Otro Nivel
+                    </button>
+                    <button onclick="restartCurrentLevel()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:opacity-90 text-white font-bold text-sm shadow-lg shadow-pink-500/30 transition-all">
+                        Reintentar Nivel
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT COLUMN: ANATOMICAL PUZZLE RECONSTRUCTION (5 Cols) -->
+        <section class="lg:col-span-5 glass-panel rounded-2xl p-5 flex flex-col justify-between space-y-4 border-2 border-pink-500/50">
+            <div>
+                <div class="flex items-center justify-between border-b-2 border-slate-800 pb-3 mb-4">
+                    <h2 class="font-black text-slate-100 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-puzzle-piece text-pink-400 text-xl"></i> Rompecabezas Anatómico
+                    </h2>
+                    <span id="reconstruction-percentage" class="text-xs font-black text-pink-300 bg-pink-950 border-2 border-pink-500 px-3 py-1.5 rounded-full shadow-lg shadow-pink-500/30">
+                        0/20 Piezas
+                    </span>
+                </div>
+                <p id="puzzle-title-desc" class="text-xs font-medium text-slate-300 mb-4">
+                    ¡Cada respuesta correcta desbloquea una pieza del atlas!
+                </p>
+
+                <!-- PUZZLE DISPLAY GRID -->
+                <div class="relative bg-slate-950 rounded-2xl border-2 border-purple-500/60 p-3.5 min-h-[340px] flex flex-col items-center justify-center overflow-hidden shadow-2xl">
+                    <div id="puzzle-grid" class="puzzle-grid w-full max-w-[360px] aspect-[5/4] relative">
+                        <!-- 20 Puzzle pieces dynamically injected by JavaScript -->
+                    </div>
+
+                    <!-- Visual Feedback Overlay -->
+                    <div id="visual-feedback-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md p-5 flex flex-col items-center justify-center text-center opacity-0 pointer-events-none transition-all duration-300 z-20 border-2 border-pink-500">
+                        <div id="feedback-icon-container" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 shadow-xl">
+                            <!-- Injected icon -->
+                        </div>
+                        <h4 id="feedback-title" class="font-black text-lg text-white">---</h4>
+                        <p id="feedback-explanation" class="text-xs font-medium text-slate-200 mt-2 leading-relaxed max-w-xs bg-slate-900 p-3 rounded-xl border border-slate-700">---</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PUZZLE PROGRESS BAR -->
+            <div class="bg-slate-950 rounded-xl p-3.5 border-2 border-pink-500/40 space-y-2 shadow-inner">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="font-black text-slate-300 uppercase tracking-wider">Avance del Rompecabezas:</span>
+                    <span id="puzzle-progress-text" class="text-pink-400 font-black text-sm">0 de 20 piezas</span>
+                </div>
+                <div class="w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-700">
+                    <div id="puzzle-progress-bar" class="bg-gradient-to-r from-pink-500 via-rose-400 to-amber-400 h-full w-0 transition-all duration-300 rounded-full shadow-md shadow-pink-500/50"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="max-w-7xl w-full mx-auto mt-6 text-center text-xs font-bold text-slate-400 py-3 border-t border-slate-800">
+        AnatoObs Trivia - Plataforma Interactiva Educativa de Anatomía Obstétrica
+    </footer>
+
+    <script>
+        // Database containing 20 questions for each of the 3 difficulty levels
+        const questionsDB = {
+            beginner: [
+                { q: "¿Cuál es el órgano muscular hueco donde se desarrolla la gestación?", options: ["Útero", "Vagina", "Ovario", "Vejiga"], correct: 0, explanation: "El útero es el órgano muscular hueco en la pelvis femenina donde se alberga y desarrolla el embrión/feto." },
+                { q: "¿Cuántos huesos conforman la pelvis ósea en el adulto?", options: ["2 huesos", "4 huesos", "6 huesos", "8 huesos"], correct: 1, explanation: "La pelvis ósea está formada por 4 huesos: los 2 coxales (ilíacos), el sacro y el cóccix." },
+                { q: "¿Qué estructura anatómica conecta las trompas de Falopio con el útero?", options: ["Cuerno uterino", "Cérvix", "Fondo uterino", "Itsmo"], correct: 0, explanation: "Los cuernos uterinos son las regiones superolaterales de la cavidad uterina por donde penetran las trompas." },
+                { q: "¿Cuál es la capa mucosa interna del útero que se descama en la menstruación?", options: ["Miometrio", "Endometrio", "Perimetrio", "Parametrio"], correct: 1, explanation: "El endometrio es la capa mucosa interna highly vascularizada y sensible a hormonas." },
+                { q: "¿Dónde ocurre habitualmente la fecundación del óvulo?", options: ["En la cavidad uterina", "En la ampolla de la trompa", "En el ovario", "En el cérvix"], correct: 1, explanation: "La ampolla tubárica es la porción más ancha de la trompa uterina donde ocurre con mayor frecuencia la fertilización." },
+                { q: "¿Qué nombre recibe la parte inferior y cilíndrica del útero que comunica con la vagina?", options: ["Cérvix o cuello uterino", "Fondo uterino", "Cuerpo uterino", "Istmo"], correct: 0, explanation: "El cuello uterino o cérvix conecta la cavidad uterina con el canal vaginal." },
+                { q: "¿Cuál de las siguientes es una función principal de los ovarios?", options: ["Filtrar sangre", "Producir gametos (ovocitos) y hormonas", "Almacenar orina", "Sostener el suelo pélvico"], correct: 1, explanation: "Los ovarios son las gónadas femeninas responsables de la ovogénesis y la síntesis de estrógenos y progesterona." },
+                { q: "¿Qué ligamento sostiene el ovario fijándolo a la pared lateral de la pelvis?", options: ["Ligamento infundibulopélvico (suspensorio)", "Ligamento redondo", "Ligamento ancho", "Ligamento uterosacro"], correct: 0, explanation: "El ligamento suspensorio del ovario (infundibulopélvico) transporta los vasos ováricos." },
+                { q: "¿Qué estructura anatómica forma el límite anterior de la pelvis menor?", options: ["Sínfisis del pubis", "Sacro", "Promontorio", "Espina ciática"], correct: 0, explanation: "Anteriormente, la pelvis menor está delimitada por los cuerpos pubis y la sínfisis pubiana." },
+                { q: "¿Cómo se llama el área comprendida entre el orificio vaginal y el ano?", options: ["Periné o cuerpo perineal", "Monte de Venus", "Monte del pubis", "Fosa isquioanal"], correct: 0, explanation: "El periné anterior/cuerpo perineal es el centro tendinoso del piso pélvico entre vagina y ano." },
+                { q: "¿Cuál es el epitelio que reviste el ectocérvix?", options: ["Escamoso estratificado no queratinizado", "Cilíndrico simple", "Pseudoestratificado", "De transición"], correct: 0, explanation: "El ectocérvix está recubierto por epitelio escamoso estratificado resistente a la fricción." },
+                { q: "¿Qué arteria irriga principalmente al cuerpo del útero?", options: ["Arteria uterina", "Arteria pudenda interna", "Arteria epigástrica", "Arteria mesentérica inferior"], correct: 0, explanation: "La arteria uterina (rama de la ilíaca interna) es el vaso principal del útero." },
+                { q: "¿Qué tipo de pelvis se considera la más idónea para el parto vaginal?", options: ["Ginecoide", "Androide", "Antropoide", "Platipeloide"], correct: 0, explanation: "La pelvis ginecoide tiene un estrecho superior redondeado u ovalado ideal para la estrechez cefálica." },
+                { q: "¿Cuál es la capa muscular gruesa del útero responsable de las contracciones?", options: ["Miometrio", "Endometrio", "Serosa", "Peritoneo"], correct: 0, explanation: "El miometrio está formado por músculo liso dispuesto en varias capas entretejidas." },
+                { q: "¿Qué estructura forma el techo de la cavidad amniótica?", options: ["Amnios", "Corion", "Decidua", "Placenta"], correct: 0, explanation: "El amnios es la membrana delgada e interna que encierra al líquido amniótico y al feto." },
+                { q: "¿Cuántas arterias umbilicales tiene normalmente el cordón umbilical humano?", options: ["2 arterias", "1 arteria", "3 arterias", "Ninguna arteria"], correct: 0, explanation: "El cordón umbilical normal consta de 2 arterias (sangre desoxigenada) y 1 vena (sangre oxigenada)." },
+                { q: "¿Qué estructura anatómica sirve de guía táctil para evaluar el descenso fetal durante el parto?", options: ["Espinas ciáticas", "Promontorio sacro", "Sínfisis pubiana", "Crestas ilíacas"], correct: 0, explanation: "Las espinas ciáticas son el punto de referencia anatómico clave (estación 0 de De Lee)." },
+                { q: "¿Cuál es el nombre del líquido en el que flota el feto dentro del saco gestacional?", options: ["Líquido amniótico", "Plasma materno", "Líquido cefalorraquídeo", "Linfa pélvica"], correct: 0, explanation: "El líquido amniótico amortigua impactos, mantiene la temperatura y permite el desarrollo muscular y pulmonar." },
+                { q: "¿Qué hormona es producida por el sincitiotrofoblasto para mantener el cuerpo lúteo al inicio del embarazo?", options: ["hCG (Gonadotropina coriónica humana)", "Ocitocina", "Prolactina", "FSH"], correct: 0, explanation: "La hCG mantiene la producción progestágena inicial por parte del cuerpo lúteo en las primeras semanas." },
+                { q: "¿Qué orificio cervical se abre directamente hacia la cavidad uterina?", options: ["Orificio cervical interno (OCI)", "Orificio cervical externo (OCE)", "Fondo de saco", "Hiato genital"], correct: 0, explanation: "El OCI comunica el canal endocervical con el espacio interno del cuerpo uterino." }
+            ],
+            intermediate: [
+                { q: "¿Qué plano de Hodge pasa por el borde superior de la sínfisis pubiana y el promontorio?", options: ["I Plano de Hodge", "II Plano de Hodge", "III Plano de Hodge", "IV Plano de Hodge"], correct: 0, explanation: "El I plano de Hodge se extiende desde el borde superior de la sínfisis del pubis hasta el promontorio sacro." },
+                { q: "¿Qué diámetro de la cabeza fetal presenta menor longitud durante la flexión completa?", options: ["Suboccipitobregmático (9.5 cm)", "Occipitofrontal (12 cm)", "Occipitomentoniano (13.5 cm)", "Biparietal (10.5 cm)"], correct: 0, explanation: "El diámetro suboccipitobregmático (9.5 cm) es el más reducido y óptimo para el paso por el canal de parto." },
+                { q: "¿De qué arteria principal nace la arteria uterina?", options: ["Arteria ilíaca interna (hipogástrica)", "Arteria ilíaca externa", "Aorta abdominal", "Arteria femoral"], correct: 0, explanation: "La arteria uterina es una rama del tronco anterior de la arteria ilíaca interna o hipogástrica." },
+                { q: "¿Qué ligamento uterino contiene en su espesor a los vasos uterinos principales?", options: ["Ligamento ancho (Cardenal / Mackenrodt)", "Ligamento redondo", "Ligamento uterosacro", "Ligamento propio del ovario"], correct: 0, explanation: "El ligamento cardinal o de Mackenrodt en la base del ligamento ancho contiene los vasos uterinos." },
+                { q: "¿Qué músculo NO forma parte del diafragma pélvico (elevador del ano)?", options: ["Isquiocavernoso", "Puborrectal", "Pubococcígeo", "Iliococcígeo"], correct: 0, explanation: "El isquiocavernoso forma parte del plano superficial del periné, no del elevador del ano." },
+                { q: "¿En qué plano de Hodge se ubica la cabeza fetal cuando la presentación llega al nivel de las espinas ciáticas (Estación 0)?", options: ["III Plano de Hodge", "I Plano de Hodge", "II Plano de Hodge", "IV Plano de Hodge"], correct: 0, explanation: "El III plano de Hodge pasa tangencialmente a nivel de ambas espinas ciáticas (Estación 0)." },
+                { q: "¿Cuál es el valor del diámetro conjugado obstétrico (útil) en una pelvis ginecoide promedio?", options: ["10.5 - 11 cm", "8.5 cm", "13.5 cm", "15 cm"], correct: 0, explanation: "El conjugado obstétrico mide habitualmente alrededor de 10.5 a 11 cm." },
+                { q: "¿Qué ligamento se extiende desde el ángulo anterosuperior del útero hasta el labio mayor atravesando el conducto inguinal?", options: ["Ligamento redondo", "Ligamento uterosacro", "Ligamento ancho", "Ligamento ovárico"], correct: 0, explanation: "El ligamento redondo mantiene la posición de anteversoflexión del útero e ingresa al canal inguinal." },
+                { q: "¿Cuál es la función principal de las arterias espirales uterinas durante la gestación?", options: ["Suministrar flujo sanguíneo al espacio intervelloso placentario", "Drenar linfa pélvica", "Sintetizar líquido amniótico", "Nutrir el cuello uterino"], correct: 0, explanation: "Las arterias espirales se remodelan para ofrecer alta perfusión de baja resistencia al espacio intervelloso." },
+                { q: "¿Qué vena del cordón umbilical lleva sangre rica en oxígeno y nutrientes desde la placenta hacia el feto?", options: ["Vena umbilical", "Arteria umbilical izquierda", "Vena cava inferior materna", "Vena uterina"], correct: 0, explanation: "A diferencia de la circulación postnatal, la vena umbilical transporta sangre oxigenada desde la placenta al feto." },
+                { q: "¿Cómo se denomina la línea imaginaria de división entre la pelvis mayor y la pelvis menor?", options: ["Línea terminal / Estrecho superior", "Línea de Hodge", "Eje de Carus", "Diámetro transverso"], correct: 0, explanation: "La línea terminal (conformada por promontorio, línea arqueada, pecten del pubis) delimita la pelvis mayor de la menor." },
+                { q: "¿Qué estructura anatómica del feto conecta directamente la arteria pulmonar con la aorta descendente?", options: ["Ductus arterioso (Conducto arterial)", "Foramen oval", "Ductus venoso", "Seno coronario"], correct: 0, explanation: "El ductus arterioso desvía la mayor parte de la sangre del ventrículo derecho hacia la aorta, evitando los pulmones no colapsados." },
+                { q: "¿Qué hormona es responsable de ablandar los ligamentos pélvicos y la sínfisis pubiana durante el embarazo?", options: ["Relaxina", "Progesterona", "Prolactina", "Estradiol"], correct: 0, explanation: "La relaxina, secretada por el cuerpo lúteo y la placenta, incrementa la flexibilidad articular pélvica." },
+                { q: "¿Cuál es la fontanela de la cabeza fetal que tiene forma romboidea o diamantada?", options: ["Fontanela anterior (Bregma)", "Fontanela posterior (Lambda)", "Fontanela esfenoidal", "Fontanela mastoidea"], correct: 0, explanation: "La fontanela anterior o bregmática es romboidea y se ubica entre las suturas coronal, sagital y frontal." },
+                { q: "¿Cuál es la causa anatómica más común de inversión uterina aguda tras el alumbramiento?", options: ["Tracción excesiva del cordón umbilical con atonía uterina", "Episiotomía profunda", "Desgarro del cérvix", "Placenta previa"], correct: 0, explanation: "Traccionar el cordón umbilical antes del desprendimiento completo y con un fondo uterino relajado provoca inversión." },
+                { q: "¿Qué diámetro pélvico se extiende entre la cara posterior de la sínfisis del pubis y el promontorio sacro?", options: ["Conjugado verdadero (Anatómico)", "Diámetro biespinoso", "Diámetro biisquiático", "Conjugado diagonal"], correct: 0, explanation: "El conjugado verdadero va del promontorio al punto superior de la sínfisis pubiana." },
+                { q: "¿Qué porción de la trompa de Falopio posee fimbrias o franjas que atrapan al ovocito?", options: ["Infundíbulo (Pabellón)", "Ampolla", "Istmo", "Porción uterina"], correct: 0, explanation: "El infundíbulo presenta las fimbrias pericaptoras que cubren la superficie ovárica al ovular." },
+                { q: "¿Qué espacio anatómico retroperitoneal se localiza detrás del cuello uterino y delante del recto?", options: ["Fondo de saco de Douglas (Rectouterino)", "Fondo de saco vesicouterino", "Fosa isquioanal", "Espacio de Retzius"], correct: 0, explanation: "El fondo de saco de Douglas es el punto peritoneal más declive de la cavidad pélvica en la mujer." },
+                { q: "¿Qué nombre recibe el vaso fetal que conecta la vena umbilical con la vena cava inferior pasando por el hígado?", options: ["Ductus venoso (de Arancio)", "Conducto arterioso", "Foramen oval", "Vena vitelina"], correct: 0, explanation: "El ductus venoso puentea el lecho hepático fetal permitiendo que la sangre oxigenada llegue veloz al corazón." },
+                { q: "¿Cuál de los siguientes ligamentos contiene las fibras nerviosas dolorosas uterinas que se bloquean en anestesia?", options: ["Ligamentos uterosacros", "Ligamento ancho", "Ligamento suspensorio", "Ligamento redondo"], correct: 0, explanation: "Los ligamentos uterosacros llevan plexos nerviosos aferentes viscerales del cuello uterino." }
+            ],
+            difficult: [
+                { q: "¿Qué nervio motor y sensitivo transita por el canal de Alcock para inervar el periné?", options: ["Nervio pudendo", "Nervio femoral", "Nervio ciático", "Nervio obturador"], correct: 0, explanation: "El nervio pudendo recorre el canal del obturador interno (canal de Alcock) acompañado de los vasos pudendos." },
+                { q: "¿Qué capas tisulares se inciden en una episiotomía mediolateral adecuada?", options: ["Piel, mucosa vaginal, bulboesponjoso y transverso superficial del periné", "Únicamente piel", "Músculo esfínter anal interno y externo", "Ligamento uterosacro"], correct: 0, explanation: "Una episiotomía mediolateral secciona piel, mucosa, músculo bulboesponjoso y transverso superficial, evitando el esfínter anal." },
+                { q: "¿Qué arteria da origen a la arteria vaginal en la mayoría de las variaciones anatómicas humanas?", options: ["Arteria uterina o arteria ilíaca interna", "Arteria pudenda externa", "Arteria mesentérica inferior", "Arteria epigástrica inferior"], correct: 0, explanation: "La arteria vaginal suele nacer directamente del tronco anterior de la ilíaca interna o como rama inicial de la uterina." },
+                { q: "¿Qué proceso anatómico vascular no invasivo patológico favorece el desarrollo de preeclampsia?", options: ["Defecto en la invasión trofoblástica de las arterias espirales miometriales", "Trombosis de la vena umbilical", "Aneurisma de la arteria uterina", "Rotura del ligamento ancho"], correct: 0, explanation: "La falla en la segunda ola de invasión trofoblástica mantiene las arterias espirales con alta resistencia, desencadenando isquemia." },
+                { q: "¿Qué raíces espinales forman los ramos del plexo pudendo?", options: ["S2, S3, S4", "L1, L2, L3", "S1, S2, S3", "L4, L5, S1"], correct: 0, explanation: "El nervio pudendo se origina de las ramas ventrales de los nervios sacros S2, S3 y S4 ('S2, 3, 4 keep the poop off the floor')." },
+                { q: "¿Qué fascias y espacios delimitan la fosa isquiorectal (isquioanal)?", options: ["Entre el músculo elevador del ano y el músculo obturador interno", "Entre el útero y la vejiga", "Debajo del ligamento inguinal", "Posterior al hueso sacro"], correct: 0, explanation: "Las fosas isquioanales se ubican a ambos lados del conducto anal, rellenas de grasa y atravesadas por vasos pudendos." },
+                { q: "¿En qué punto anatómico exacto se infiltra el anestésico local para lograr un bloqueo del nervio pudendo?", options: ["En la cara posterior de la espina ciática / ligamento sacroespinoso", "En el fondo de saco de Douglas", "En la sínfisis pubiana", "En el promontorio"], correct: 0, explanation: "Se ubica digitalmente la espina ciática y se infiltra rodeando el ligamento sacroespinoso por donde curva el nervio." },
+                { q: "¿Qué ligamento sostiene la vagina lateralmente hacia la fascia del músculo obturador interno?", options: ["Paracolpos / Arco tendinoso de la fascia pélvica", "Ligamento redondo", "Ligamento ovárico", "Ligamento falciforme"], correct: 0, explanation: "El paracolpos suspende la pared vaginal superior y media al arco tendinoso de la fascia pélvica." },
+                { q: "¿Cuál es el contenido del espacio perineal profundo en la mujer?", options: ["Músculo esfínter uretral externo, compresor de la uretra y nervios", "Músculo glúteo mayor", "Cuerpo del útero", "Ovarios y trompas"], correct: 0, explanation: "El espacio perineal profundo contiene la musculatura del complejo esfinteriano urogenital." },
+                { q: "¿Qué anomalía de la inserción placentaria se caracteriza por invasión del miometrio pero sin atravesar la serosa?", options: ["Placenta Increta", "Placenta Acreta", "Placenta Percreta", "Placenta Previa"], correct: 0, explanation: "Acreta se adhiere al miometrio; Increta penetra el miometrio; Percreta atraviesa la serosa e invade órganos adyacentes." },
+                { q: "¿Qué arco vascular anastomosis une el sistema arterial ovárico con el sistema arterial uterino?", options: ["Rama tubárica e intraparenquimatosa de la arteria uterina y ovárica", "Arteria mesentérica", "Arteria ilíaca externa", "Arteria femoral de Profunda"], correct: 0, explanation: "Las arterias uterina y ovárica se anastomosan en el mesosálpinx forming un arco vascular continuo vital." },
+                { q: "¿Qué estructura anatómica forma el vértice del triángulo urogenital anterior?", options: ["Sínfisis del pubis", "Cóccix", "Tuberías isquiáticas", "Espina ciática"], correct: 0, explanation: "El triángulo anterior (urogenital) tiene su vértice en el borde inferior de la sínfisis del pubis." },
+                { q: "¿Qué músculo es el principal responsable de la continencia urinaria de esfuerzo junto con la fascia pubocervical?", options: ["Músculo pubovisceral / pubococcígeo", "Músculo piriforme", "Músculo obturador interno", "Músculo glúteo medio"], correct: 0, explanation: "El asa puborrectal y pubococcígea forman la 'hamaca' de soporte de la uretra media." },
+                { q: "¿Qué estructura vascular atraviesa el espacio de Retzius (espacio retropúbico)?", options: ["Plexo venoso de Santorini (venoso prostático/vesicovaginal)", "Arteria aorta", "Vena cava superior", "Arteria mesentérica"], correct: 0, explanation: "El espacio de Retzius entre la cara posterior del pubis y la vejiga contiene finas venas del plexo retropúbico." },
+                { q: "¿Qué diámetro del estrecho inferior de la pelvis se incrementa durante la retropulsión del cóccix en el parto?", options: ["Diámetro subsacrosubpubiano / subcoccixsubpubiano", "Diámetro biisquiático", "Diámetro transverso", "Conjugado verdadero"], correct: 0, explanation: "La movilidad de la articulación sacrococcígea amplía el diámetro anteroposterior del estrecho inferior de 9.5 a 11-12 cm." },
+                { q: "¿Qué variante de arteria uterina aberrante o cruzada se debe proteger durante una histerectomía obstétrica?", options: ["El cruce de la arteria uterina por encima del uréter", "El cruce por detrás de la aorta", "Su unión con la vena cava", "Su paso por el ligamento inguinal"], correct: 0, explanation: "La arteria uterina cruza superiormente al uréter a ~1.5 - 2 cm del cérvix ('el agua pasa bajo el puente')." },
+                { q: "¿Qué centro tendinoso fibroso sostiene el piso pélvico uniendo los músculos bulboesponjoso, perineal transverso y esfínter anal?", options: ["Cuerpo perineal (Núcleo fibroso del periné)", "Ligamento de Cooper", "Arco tendinoso de la fascia", "Línea alba"], correct: 0, explanation: "El cuerpo perineal es la estructura clave de anclaje para la estática pélvica y soporte perineal inferior." },
+                { q: "¿Cuál es la complicación anatómica vascular más grave del hematoma de ligamento ancho tras una laceración uterina?", options: ["Hemorragia retroperitoneal expansiva por rotura de ramas de la arteria uterina", "Infección de orina", "Torsión de ovario", "Obstrucción intestinal"], correct: 0, explanation: "Un hematoma retroperitoneal contenido en el ligamento ancho puede disecar hasta el espacio pararrenal acumulando litros de sangre." },
+                { q: "¿Qué tipo de sutura o ligadura anatómica quirúrgica de emergencia se coloca en la arteria ilíaca interna para controlar la hemorragia obstétrica masiva?", options: ["Ligadura de arterias hipogástricas", "Técnica de B-Lynch", "Sutura de Benckiser", "Cerclaje de McDonald"], correct: 0, explanation: "La ligadura bilateral de las arterias hipogástricas reduce drásticamente la presión de perfusión en la pelvis." },
+                { q: "¿Qué anillo fibroso anatómico delimita la hernia de órganos pélvicos en el prolapso apical severo?", options: ["Hiato urogenital del elevador del ano", "Canal inguinal", "Anillo femoral", "Foramen ciático mayor"], correct: 0, explanation: "El hiato urogenital ensanchado por atrofia o daño del elevador del ano permite la protrusión del prolapso genital." }
+            ]
+        };
+
+        let currentLevel = 'beginner';
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let streak = 0;
+        let maxStreak = 0;
+        let activeQuestions = [];
+        let canAnswer = true;
+        let soundEnabled = true;
+
+        // Timer Variables
+        let timerInterval = null;
+        let timeLeft = 20;
+
+        // Powerups Counter
+        let powerup5050Count = 1;
+        let powerupHintCount = 1;
+
+        // Rotation tracking for each level
+        let puzzleRotation = {
+            beginner: 0,
+            intermediate: 0,
+            difficult: 0
+        };
+
+        let unlockedPuzzlePieces = new Set();
+
+        // Helper function to shuffle an array (Fisher-Yates)
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // Audio Synthesizer (Web Audio API - No external files required)
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const now = ctx.currentTime;
+
+                if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+                    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.2); // G5
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now); // A3
+                    osc.frequency.exponentialRampToValueAtTime(130.81, now + 0.25); // C3
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'streak') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now); // D5
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+                    osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.3); // D6
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'fanfare') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.connect(g);
+                        g.connect(ctx.destination);
+                        o.frequency.setValueAtTime(freq, now + (idx * 0.1));
+                        g.gain.setValueAtTime(0.2, now + (idx * 0.1));
+                        g.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.1) + 0.3);
+                        o.start(now + (idx * 0.1));
+                        o.stop(now + (idx * 0.1) + 0.3);
+                    });
+                }
+            } catch (e) {
+                console.log("Audio not allowed yet:", e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('sound-btn');
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.className = 'bg-slate-900 px-3.5 py-2.5 rounded-xl border-2 border-pink-500 hover:bg-slate-800 text-pink-400 transition-all flex items-center gap-2 shadow-lg';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark';
+                btn.className = 'bg-slate-900 px-3.5 py-2.5 rounded-xl border-2 border-slate-700 text-slate-500 transition-all flex items-center gap-2 shadow-lg';
+            }
+        }
+
+        // SVG Master Vector Images
+        const puzzleSVGImages = {
+            beginner: [
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#0b1329" />
+                    <circle cx="250" cy="200" r="180" fill="none" stroke="#e0e7ff" stroke-width="1" stroke-dasharray="4,4"/>
+                    <g stroke="#38bdf8" stroke-width="16" fill="none" stroke-linecap="round">
+                        <path d="M 100 140 C 70 70, 160 50, 200 110 C 230 130, 270 130, 300 110 C 340 50, 430 70, 400 140 C 370 220, 330 250, 310 280 C 280 310, 270 330, 250 330 C 230 330, 220 310, 190 280 Z"/>
+                    </g>
+                    <path d="M 180 170 C 180 110, 320 110, 320 170 C 320 230, 280 250, 280 290 L 220 290 C 220 250, 180 230, 180 170 Z" fill="#f43f5e" stroke="#fda4af" stroke-width="4"/>
+                    <text x="250" y="50" font-family="sans-serif" font-weight="900" font-size="22" fill="#38bdf8" text-anchor="middle">ATLAS 1: ÚTERO Y PELVIS</text>
+                </svg>`,
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#0f172a" />
+                    <circle cx="250" cy="200" r="140" fill="#1e1b4b" stroke="#818cf8" stroke-width="6"/>
+                    <path d="M 230 140 C 280 130, 300 190, 260 220 C 230 240, 210 270, 250 280" fill="none" stroke="#fb7185" stroke-width="24" stroke-linecap="round"/>
+                    <text x="250" y="50" font-family="sans-serif" font-weight="900" font-size="22" fill="#818cf8" text-anchor="middle">ATLAS 2: EMBRIÓN Y AMNIOS</text>
+                </svg>`,
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#020617" />
+                    <path d="M 100 200 Q 250 100, 400 200" fill="none" stroke="#f472b6" stroke-width="14"/>
+                    <circle cx="100" cy="200" r="30" fill="#e11d48" stroke="#fecdd3" stroke-width="4"/>
+                    <circle cx="400" cy="200" r="30" fill="#e11d48" stroke="#fecdd3" stroke-width="4"/>
+                    <text x="250" y="50" font-family="sans-serif" font-weight="900" font-size="22" fill="#f472b6" text-anchor="middle">ATLAS 3: ANEXOS Y TROMPAS</text>
+                </svg>`
+            ],
+            intermediate: [
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#090d16" />
+                    <path d="M 250 60 L 250 340" stroke="#ef4444" stroke-width="16"/>
+                    <path d="M 250 150 Q 150 180, 120 300 M 250 150 Q 350 180, 380 300" stroke="#ef4444" stroke-width="10" fill="none"/>
+                    <path d="M 270 60 L 270 340" stroke="#3b82f6" stroke-width="12"/>
+                    <text x="250" y="40" font-family="sans-serif" font-weight="900" font-size="20" fill="#f87171" text-anchor="middle">ATLAS 1: VASCULARIZACIÓN PÉLVICA</text>
+                </svg>`,
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#0f172a" />
+                    <line x1="50" y1="100" x2="450" y2="100" stroke="#f59e0b" stroke-width="6" stroke-dasharray="8,4"/>
+                    <line x1="50" y1="170" x2="450" y2="170" stroke="#10b981" stroke-width="6" stroke-dasharray="8,4"/>
+                    <line x1="50" y1="240" x2="450" y2="240" stroke="#06b6d4" stroke-width="6" stroke-dasharray="8,4"/>
+                    <line x1="50" y1="310" x2="450" y2="310" stroke="#ec4899" stroke-width="6" stroke-dasharray="8,4"/>
+                    <text x="250" y="40" font-family="sans-serif" font-weight="900" font-size="20" fill="#f59e0b" text-anchor="middle">ATLAS 2: PLANOS DE HODGE</text>
+                </svg>`,
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#1e1b4b" />
+                    <ellipse cx="250" cy="200" rx="140" ry="100" fill="#312e81" stroke="#a78bfa" stroke-width="6"/>
+                    <line x1="110" y1="200" x2="390" y2="200" stroke="#f43f5e" stroke-width="8"/>
+                    <text x="250" y="40" font-family="sans-serif" font-weight="900" font-size="20" fill="#a78bfa" text-anchor="middle">ATLAS 3: DIÁMETROS CEFÁLICOS</text>
+                </svg>`
+            ],
+            difficult: [
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#020617" />
+                    <path d="M 100 300 Q 250 380, 400 300" fill="none" stroke="#a855f7" stroke-width="20"/>
+                    <path d="M 120 100 Q 200 200, 250 320 M 380 100 Q 300 200, 250 320" fill="none" stroke="#eab308" stroke-width="8"/>
+                    <text x="250" y="40" font-family="sans-serif" font-weight="900" font-size="20" fill="#eab308" text-anchor="middle">ATLAS 1: INERVACIÓN DEL PERINÉ</text>
+                </svg>`,
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#111827" />
+                    <path d="M 80 80 C 200 120, 80 240, 250 350 M 420 80 C 300 120, 420 240, 250 350" fill="none" stroke="#f43f5e" stroke-width="12"/>
+                    <text x="250" y="40" font-family="sans-serif" font-weight="900" font-size="20" fill="#f43f5e" text-anchor="middle">ATLAS 2: ARTERIAS ESPIRALES</text>
+                </svg>`,
+                `<svg viewBox="0 0 500 400" width="100%" height="100%" preserveAspectRatio="none">
+                    <rect width="500" height="400" fill="#0f172a" />
+                    <rect x="100" y="100" width="300" height="200" rx="20" fill="#1e293b" stroke="#06b6d4" stroke-width="6"/>
+                    <circle cx="250" cy="200" r="50" fill="#0891b2" />
+                    <text x="250" y="40" font-family="sans-serif" font-weight="900" font-size="20" fill="#06b6d4" text-anchor="middle">ATLAS 3: CANAL DE ALCOCK</text>
+                </svg>`
+            ]
+        };
+
+        function initPuzzleGrid() {
+            const grid = document.getElementById('puzzle-grid');
+            grid.innerHTML = '';
+
+            const rotIdx = puzzleRotation[currentLevel] % 3;
+            const currentSvgImage = puzzleSVGImages[currentLevel][rotIdx];
+
+            for (let i = 0; i < 20; i++) {
+                const col = i % 5;
+                const row = Math.floor(i / 5);
+
+                const piece = document.createElement('div');
+                piece.id = `puzzle-piece-${i}`;
+                piece.className = 'puzzle-piece locked';
+
+                const inner = document.createElement('div');
+                inner.className = 'puzzle-piece-inner';
+                inner.style.left = `-${col * 100}%`;
+                inner.style.top = `-${row * 100}%`;
+                inner.innerHTML = currentSvgImage;
+
+                piece.appendChild(inner);
+
+                const numBadge = document.createElement('span');
+                numBadge.className = 'absolute bottom-1 right-1 text-[9px] font-extrabold text-slate-300 bg-slate-900/90 px-1 rounded pointer-events-none border border-slate-700';
+                numBadge.innerText = `#${i + 1}`;
+                piece.appendChild(numBadge);
+
+                grid.appendChild(piece);
+            }
+        }
+
+        function startGame(levelKey) {
+            currentLevel = levelKey;
+
+            // Shuffle questions for the level and randomize options for each question
+            activeQuestions = shuffleArray(questionsDB[levelKey]).map(q => {
+                const originalCorrectOption = q.options[q.correct];
+                const shuffledOptions = shuffleArray(q.options);
+                const newCorrectIndex = shuffledOptions.indexOf(originalCorrectOption);
+                return {
+                    ...q,
+                    options: shuffledOptions,
+                    correct: newCorrectIndex
+                };
+            });
+
+            currentQuestionIndex = 0;
+            score = 0;
+            correctCount = 0;
+            incorrectCount = 0;
+            streak = 0;
+            maxStreak = 0;
+            powerup5050Count = 1;
+            powerupHintCount = 1;
+            unlockedPuzzlePieces.clear();
+
+            updatePowerupUI();
+            updateStreakUI();
+            initPuzzleGrid();
+            updateScoreDisplay();
+            updatePuzzleProgress();
+
+            const levelNames = { beginner: 'Principiante', intermediate: 'Intermedio', difficult: 'Avanzado' };
+            document.getElementById('current-level-badge').innerText = levelNames[levelKey];
+
+            document.getElementById('level-selection-screen').classList.add('hidden');
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('quiz-card').classList.remove('hidden');
+            document.getElementById('quiz-card').classList.add('flex');
+
+            loadQuestion();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 20;
+            updateTimerUI();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function updateTimerUI() {
+            document.getElementById('timer-text').innerHTML = `<i class="fa-solid fa-clock"></i> ${timeLeft}s`;
+            const percent = (timeLeft / 20) * 100;
+            document.getElementById('timer-bar').style.width = `${percent}%`;
+            
+            if (timeLeft <= 5) {
+                document.getElementById('timer-bar').className = 'bg-rose-500 h-full transition-all duration-100 ease-linear';
+            } else {
+                document.getElementById('timer-bar').className = 'bg-amber-400 h-full transition-all duration-100 ease-linear';
+            }
+        }
+
+        function handleTimeOut() {
+            if (!canAnswer) return;
+            selectOption(-1); // Automatically fails turn due to time out
+        }
+
+        function usePowerup5050() {
+            if (powerup5050Count <= 0 || !canAnswer) return;
+            powerup5050Count--;
+            updatePowerupUI();
+
+            const qData = activeQuestions[currentQuestionIndex];
+            const container = document.getElementById('options-container');
+            const buttons = container.querySelectorAll('button');
+
+            let removed = 0;
+            buttons.forEach((btn, idx) => {
+                if (idx !== qData.correct && removed < 2) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-20', 'pointer-events-none');
+                    removed++;
+                }
+            });
+            playSound('streak');
+            setCharacterDialogue("¡He descartado 2 opciones incorrectas para ti!");
+        }
+
+        function usePowerupHint() {
+            if (powerupHintCount <= 0 || !canAnswer) return;
+            powerupHintCount--;
+            updatePowerupUI();
+
+            const qData = activeQuestions[currentQuestionIndex];
+            playSound('streak');
+            setCharacterDialogue(`💡 Pista de la Dra. Sofía: "Recuerda que la respuesta correcta se refiere a ${qData.explanation.substring(0, 45)}..."`);
+        }
+
+        function updatePowerupUI() {
+            document.getElementById('count-5050').innerText = powerup5050Count;
+            document.getElementById('count-hint').innerText = powerupHintCount;
+
+            document.getElementById('powerup-5050').disabled = powerup5050Count <= 0;
+            document.getElementById('powerup-hint').disabled = powerupHintCount <= 0;
+        }
+
+        function updateStreakUI() {
+            const streakBadge = document.getElementById('streak-badge');
+            document.getElementById('streak-display').innerText = streak;
+
+            if (streak >= 3) {
+                streakBadge.classList.remove('hidden');
+                streakBadge.classList.add('streak-fire');
+            } else {
+                streakBadge.classList.add('hidden');
+                streakBadge.classList.remove('streak-fire');
+            }
+        }
+
+        function loadQuestion() {
+            canAnswer = true;
+            document.getElementById('next-btn').classList.add('hidden');
+            document.getElementById('visual-feedback-overlay').classList.add('opacity-0', 'pointer-events-none');
+
+            const qData = activeQuestions[currentQuestionIndex];
+            const total = activeQuestions.length;
+
+            document.getElementById('question-progress-text').innerText = `Pregunta ${currentQuestionIndex + 1}/${total}`;
+            document.getElementById('question-category').innerText = `Categoría: Anatomía Obstétrica (${currentLevel.toUpperCase()})`;
+            document.getElementById('question-text').innerText = qData.q;
+
+            const progressPercent = ((currentQuestionIndex) / total) * 100;
+            document.getElementById('level-progress-bar').style.width = `${progressPercent}%`;
+
+            setAvatarExpression('thinking');
+            setCharacterDialogue(`Pregunta ${currentQuestionIndex + 1}: Analiza bien la opción correcta.`);
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            qData.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-4 rounded-xl border-2 border-slate-700 bg-slate-900/90 hover:bg-slate-800 hover:border-pink-500/60 font-semibold text-slate-200 transition-all duration-200 flex items-center justify-between shadow-md hover:scale-[1.01]';
+                btn.onclick = () => selectOption(idx);
+                btn.innerHTML = `
+                    <span class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-bold text-pink-400">${String.fromCharCode(65 + idx)}</span>
+                        <span>${optText}</span>
+                    </span>
+                    <i class="fa-regular fa-circle text-slate-500"></i>
+                `;
+                container.appendChild(btn);
+            });
+
+            startTimer();
+        }
+
+        function selectOption(selectedIndex) {
+            if (!canAnswer) return;
+            canAnswer = false;
+            stopTimer();
+
+            const qData = activeQuestions[currentQuestionIndex];
+            const isCorrect = (selectedIndex === qData.correct);
+            const container = document.getElementById('options-container');
+            const buttons = container.querySelectorAll('button');
+
+            buttons.forEach((btn, idx) => {
+                btn.disabled = true;
+                if (idx === qData.correct) {
+                    btn.className = 'w-full text-left p-4 rounded-xl border-2 border-emerald-400 bg-emerald-950/80 font-bold text-emerald-200 shadow-lg shadow-emerald-500/20 flex items-center justify-between';
+                    btn.querySelector('i').className = 'fa-solid fa-circle-check text-emerald-400 text-xl';
+                } else if (idx === selectedIndex) {
+                    btn.className = 'w-full text-left p-4 rounded-xl border-2 border-rose-500 bg-rose-950/80 font-bold text-rose-200 shadow-lg shadow-rose-500/20 flex items-center justify-between';
+                    btn.querySelector('i').className = 'fa-solid fa-circle-xmark text-rose-400 text-xl';
+                } else {
+                    btn.className = 'w-full text-left p-4 rounded-xl border border-slate-800 bg-slate-950/50 text-slate-500 opacity-50 flex items-center justify-between';
+                }
+            });
+
+            const feedbackOverlay = document.getElementById('visual-feedback-overlay');
+            const feedbackIcon = document.getElementById('feedback-icon-container');
+            const feedbackTitle = document.getElementById('feedback-title');
+            const feedbackExplanation = document.getElementById('feedback-explanation');
+
+            if (isCorrect) {
+                streak++;
+                if (streak > maxStreak) maxStreak = streak;
+
+                const timeBonus = timeLeft * 5;
+                const multiplier = streak >= 3 ? 2 : 1;
+                const pointsEarned = (100 + timeBonus) * multiplier;
+
+                score += pointsEarned;
+                correctCount++;
+                updateScoreDisplay();
+                updateStreakUI();
+
+                if (streak >= 3) {
+                    playSound('streak');
+                } else {
+                    playSound('correct');
+                }
+
+                unlockedPuzzlePieces.add(currentQuestionIndex);
+                const pieceElem = document.getElementById(`puzzle-piece-${currentQuestionIndex}`);
+                if (pieceElem) {
+                    pieceElem.classList.remove('locked');
+                    pieceElem.classList.add('unlocked');
+                }
+
+                updatePuzzleProgress();
+
+                setAvatarExpression('happy');
+                setCharacterDialogue(`¡Excelente acierto! (+${pointsEarned} pts) ${qData.explanation}`);
+
+                feedbackIcon.className = 'w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 shadow-xl bg-emerald-500 text-slate-950';
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-puzzle-piece"></i>';
+                feedbackTitle.innerText = `¡Pieza #${currentQuestionIndex + 1} Unida!`;
+                feedbackTitle.className = 'font-black text-lg text-emerald-400';
+            } else {
+                streak = 0;
+                incorrectCount++;
+                updateStreakUI();
+                playSound('wrong');
+
+                setAvatarExpression('sad');
+                setCharacterDialogue(selectedIndex === -1 ? `¡Se acabó el tiempo! ${qData.explanation}` : `Incorrecto. ${qData.explanation}`);
+
+                feedbackIcon.className = 'w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-3 shadow-xl bg-rose-500 text-white';
+                feedbackIcon.innerHTML = '<i class="fa-solid fa-lock"></i>';
+                feedbackTitle.innerText = `Pieza #${currentQuestionIndex + 1} Bloqueada`;
+                feedbackTitle.className = 'font-black text-lg text-rose-400';
+            }
+
+            feedbackExplanation.innerText = qData.explanation;
+            feedbackOverlay.classList.remove('opacity-0', 'pointer-events-none');
+
+            document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < activeQuestions.length) {
+                loadQuestion();
+            } else {
+                finishLevel();
+            }
+        }
+
+        function finishLevel() {
+            stopTimer();
+            document.getElementById('quiz-card').classList.add('hidden');
+            document.getElementById('quiz-card').classList.remove('flex');
+            document.getElementById('results-screen').classList.remove('hidden');
+
+            // Clear feedback overlay so puzzle panel is clear
+            const feedbackOverlay = document.getElementById('visual-feedback-overlay');
+            if (feedbackOverlay) {
+                feedbackOverlay.classList.add('opacity-0', 'pointer-events-none');
+            }
+
+            puzzleRotation[currentLevel] = (puzzleRotation[currentLevel] + 1) % 3;
+
+            const total = activeQuestions.length;
+            const accuracy = Math.round((correctCount / total) * 100);
+
+            document.getElementById('results-correct').innerText = correctCount;
+            document.getElementById('results-incorrect').innerText = incorrectCount;
+            document.getElementById('results-accuracy').innerText = `${accuracy}%`;
+
+            renderAchievements(accuracy);
+
+            if (accuracy >= 80) {
+                playSound('fanfare');
+                triggerConfetti();
+                setAvatarExpression('happy');
+                setCharacterDialogue(`¡Extraordinario trabajo! Puedes admirar en el panel de la derecha las ${correctCount}/20 piezas que lograste revelar de la ilustración anatómica.`);
+            } else if (accuracy >= 50) {
+                playSound('correct');
+                setAvatarExpression('neutral');
+                setCharacterDialogue(`¡Buen intento! Armaste ${correctCount} de 20 piezas (${accuracy}%). Observa las piezas reveladas en el panel derecho.`);
+            } else {
+                setAvatarExpression('sad');
+                setCharacterDialogue(`Completaste el nivel con ${correctCount} piezas unidas (${accuracy}%). ¡Puedes revisar la ilustración o reintentar!`);
+            }
+        }
+
+        function renderAchievements(accuracy) {
+            const container = document.getElementById('achievements-container');
+            container.innerHTML = '';
+
+            const badges = [];
+            if (accuracy === 100) {
+                badges.push({ name: '🏆 Perfección Antómica', color: 'bg-amber-400 text-slate-950' });
+            }
+            if (maxStreak >= 5) {
+                badges.push({ name: '🔥 Racha Imparable', color: 'bg-rose-500 text-white' });
+            }
+            if (score >= 2500) {
+                badges.push({ name: '⚡ Velocista Médico', color: 'bg-cyan-400 text-slate-950' });
+            }
+
+            badges.forEach(b => {
+                const badgeElem = document.createElement('span');
+                badgeElem.className = `px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-md ${b.color}`;
+                badgeElem.innerText = b.name;
+                container.appendChild(badgeElem);
+            });
+        }
+
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#ec4899', '#38bdf8', '#f59e0b', '#10b981', '#a855f7'];
+
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    speedY: Math.random() * 3 + 2,
+                    speedX: Math.random() * 2 - 1
+                });
+            }
+
+            let animationFrame;
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                if (particles.some(p => p.y < canvas.height)) {
+                    animationFrame = requestAnimationFrame(animate);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            animate();
+        }
+
+        function revealAllPuzzlePieces() {
+            for (let i = 0; i < 20; i++) {
+                unlockedPuzzlePieces.add(i);
+                const pieceElem = document.getElementById(`puzzle-piece-${i}`);
+                if (pieceElem) {
+                    pieceElem.classList.remove('locked');
+                    pieceElem.classList.add('unlocked');
+                }
+            }
+            updatePuzzleProgress();
+            triggerConfetti();
+            playSound('fanfare');
+
+            const feedbackOverlay = document.getElementById('visual-feedback-overlay');
+            if (feedbackOverlay) {
+                feedbackOverlay.classList.add('opacity-0', 'pointer-events-none');
+            }
+            setCharacterDialogue("¡Atlas anatómico completado al 100%! Ahora puedes observar todos los detalles del gráfico.");
+        }
+
+        function restartCurrentLevel() {
+            startGame(currentLevel);
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score-display').innerText = score;
+        }
+
+        function showLevelSelect() {
+            stopTimer();
+            document.getElementById('quiz-card').classList.add('hidden');
+            document.getElementById('quiz-card').classList.remove('flex');
+            document.getElementById('results-screen').classList.add('hidden');
+            document.getElementById('level-selection-screen').classList.remove('hidden');
+
+            setAvatarExpression('neutral');
+            setCharacterDialogue('¡Hola! Soy la Dra. Sofía. Selecciona un nivel y cada respuesta acertada revelará una pieza brillante del rompecabezas anatómico.');
+        }
+
+        function updatePuzzleProgress() {
+            const count = unlockedPuzzlePieces.size;
+            document.getElementById('reconstruction-percentage').innerText = `${count}/20 Piezas`;
+            document.getElementById('puzzle-progress-text').innerText = `${count} de 20 piezas`;
+            document.getElementById('puzzle-progress-bar').style.width = `${(count / 20) * 100}%`;
+        }
+
+        function setAvatarExpression(expr) {
+            const svg = document.getElementById('character-svg');
+            const dot = document.getElementById('character-status-dot');
+
+            if (expr === 'happy') {
+                dot.className = 'absolute bottom-0 right-0 w-5 h-5 bg-emerald-400 border-2 border-slate-900 rounded-full shadow-lg shadow-emerald-400/50';
+                svg.innerHTML = `
+                    <circle cx="50" cy="50" r="42" fill="#ec4899" opacity="0.2"/>
+                    <circle cx="50" cy="45" r="32" fill="#fce7f3"/>
+                    <path d="M 30 25 C 40 10, 60 10, 70 25 L 75 45 C 65 35, 35 35, 25 45 Z" fill="#831843"/>
+                    <circle cx="38" cy="42" r="4" fill="#0f172a"/>
+                    <circle cx="62" cy="42" r="4" fill="#0f172a"/>
+                    <path d="M 36 52 Q 50 66, 64 52" fill="none" stroke="#e11d48" stroke-width="4" stroke-linecap="round"/>
+                    <rect x="42" y="22" width="16" height="8" rx="2" fill="#38bdf8"/>
+                `;
+            } else if (expr === 'sad') {
+                dot.className = 'absolute bottom-0 right-0 w-5 h-5 bg-rose-500 border-2 border-slate-900 rounded-full shadow-lg shadow-rose-500/50';
+                svg.innerHTML = `
+                    <circle cx="50" cy="50" r="42" fill="#f43f5e" opacity="0.2"/>
+                    <circle cx="50" cy="45" r="32" fill="#fce7f3"/>
+                    <path d="M 30 25 C 40 10, 60 10, 70 25 L 75 45 C 65 35, 35 35, 25 45 Z" fill="#831843"/>
+                    <circle cx="38" cy="42" r="4" fill="#0f172a"/>
+                    <circle cx="62" cy="42" r="4" fill="#0f172a"/>
+                    <path d="M 38 58 Q 50 48, 62 58" fill="none" stroke="#e11d48" stroke-width="4" stroke-linecap="round"/>
+                `;
+            } else if (expr === 'thinking') {
+                dot.className = 'absolute bottom-0 right-0 w-5 h-5 bg-amber-400 border-2 border-slate-900 rounded-full shadow-lg shadow-amber-400/50';
+                svg.innerHTML = `
+                    <circle cx="50" cy="50" r="42" fill="#f59e0b" opacity="0.2"/>
+                    <circle cx="50" cy="45" r="32" fill="#fce7f3"/>
+                    <path d="M 30 25 C 40 10, 60 10, 70 25 L 75 45 C 65 35, 35 35, 25 45 Z" fill="#831843"/>
+                    <ellipse cx="38" cy="42" rx="4" ry="2" fill="#0f172a"/>
+                    <circle cx="62" cy="40" r="4" fill="#0f172a"/>
+                    <line x1="42" y1="54" x2="58" y2="54" stroke="#e11d48" stroke-width="4" stroke-linecap="round"/>
+                `;
+            } else {
+                dot.className = 'absolute bottom-0 right-0 w-5 h-5 bg-emerald-400 border-2 border-slate-900 rounded-full shadow-lg shadow-emerald-400/50';
+                svg.innerHTML = `
+                    <circle cx="50" cy="50" r="42" fill="#a855f7" opacity="0.2"/>
+                    <circle cx="50" cy="45" r="32" fill="#fce7f3"/>
+                    <path d="M 30 25 C 40 10, 60 10, 70 25 L 75 45 C 65 35, 35 35, 25 45 Z" fill="#831843"/>
+                    <circle cx="38" cy="42" r="4" fill="#0f172a"/>
+                    <circle cx="62" cy="42" r="4" fill="#0f172a"/>
+                    <path d="M 40 54 Q 50 60, 60 54" fill="none" stroke="#e11d48" stroke-width="3" stroke-linecap="round"/>
+                `;
+            }
+        }
+
+        function setCharacterDialogue(text) {
+            document.getElementById('character-dialogue').innerText = text;
+        }
+
+        // On Window Load Initialization
+        window.onload = function() {
+            setAvatarExpression('neutral');
+            initPuzzleGrid();
+        };
+    </script>
+</body>
+</html>
